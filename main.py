@@ -1,3 +1,5 @@
+import os
+import database
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -5,3 +7,4 @@ app = FastAPI()
 @app.get("/")
 def root():
     return {"message": "entorno listo"}
+
