@@ -1,0 +1,6 @@
+@"
+.env
+venv/
+__pycache__/
+.vercel/
+"@ | Set-Content -Encoding utf8 .gitignore
