@@ -1,15 +1,13 @@
 from contextlib import asynccontextmanager
+from sqlite3 import IntegrityError
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
-
+from fastapi.middleware.cors import CORSMiddleware
 import models
 from database import create_db_and_tables, get_session
-from sql_panel import router as panel_router
-
-app.include_router(panel_router)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,8 +17,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Sistema de Gestión de Ventas y Suministro", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# ---------- Categorías ----------
+
+
 
 @app.get("/api/categorias", response_model=list[models.Categoria])
 def listar_categorias(session: Session = Depends(get_session)):
@@ -45,7 +50,6 @@ def borrar_categoria(categoria_id: int, session: Session = Depends(get_session))
     session.commit()
 
 
-# ---------- Proveedores ----------
 
 @app.get("/api/proveedores", response_model=list[models.Proveedor])
 def listar_proveedores(session: Session = Depends(get_session)):
@@ -70,7 +74,6 @@ def borrar_proveedor(proveedor_id: int, session: Session = Depends(get_session))
     session.commit()
 
 
-# ---------- Productos ----------
 
 @app.get("/api/productos", response_model=list[models.Producto])
 def listar_productos(categoria_id: Optional[int] = None, session: Session = Depends(get_session)):
@@ -84,10 +87,13 @@ def listar_productos(categoria_id: Optional[int] = None, session: Session = Depe
 def crear_producto(producto: models.Producto, session: Session = Depends(get_session)):
     producto.id = None
     session.add(producto)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(409, "Ya existe un producto con ese código, o la categoría no existe")
     session.refresh(producto)
     return producto
-
 
 @app.put("/api/productos/{producto_id}", response_model=models.Producto)
 def actualizar_producto(producto_id: int, datos: models.Producto, session: Session = Depends(get_session)):
@@ -112,7 +118,6 @@ def borrar_producto(producto_id: int, session: Session = Depends(get_session)):
     session.commit()
 
 
-# ---------- Clientes ----------
 
 @app.get("/api/clientes", response_model=list[models.Cliente])
 def listar_clientes(session: Session = Depends(get_session)):
@@ -137,7 +142,6 @@ def borrar_cliente(cliente_id: int, session: Session = Depends(get_session)):
     session.commit()
 
 
-# ---------- Ventas (venta + detalle en un solo envío) ----------
 
 class ItemVenta(models.SQLModel):
     producto_id: int
@@ -155,14 +159,40 @@ def listar_ventas(session: Session = Depends(get_session)):
     return session.exec(select(models.Venta)).all()
 
 
+@app.get("/api/ventas/resumen")
+def resumen_ventas(session: Session = Depends(get_session)):
+    ventas = session.exec(
+        select(models.Venta).order_by(models.Venta.id.desc())
+    ).all()
+    resultado = []
+    for v in ventas:
+        detalles = session.exec(
+            select(models.DetalleVenta).where(models.DetalleVenta.venta_id == v.id)
+        ).all()
+        total = sum(d.precio_unitario * d.cantidad for d in detalles)
+        resultado.append({
+            "id": v.id,
+            "fecha": v.fecha,
+            "metodo_pago": v.metodo_pago,
+            "articulos": sum(d.cantidad for d in detalles),
+            "total": total,
+        })
+    return resultado
+
 @app.post("/api/ventas", status_code=201)
 def crear_venta(entrada: VentaEntrada, session: Session = Depends(get_session)):
+    if not entrada.items:
+        raise HTTPException(400, "La venta no tiene productos")
+
     venta = models.Venta(cliente_id=entrada.cliente_id, metodo_pago=entrada.metodo_pago)
     session.add(venta)
-    session.commit()
-    session.refresh(venta)
+    session.flush()  
 
+    total = 0
     for item in entrada.items:
+        if item.cantidad <= 0:
+            raise HTTPException(400, "La cantidad debe ser mayor a 0")
+
         producto = session.get(models.Producto, item.producto_id)
         if not producto:
             raise HTTPException(404, f"Producto {item.producto_id} no encontrado")
@@ -176,13 +206,11 @@ def crear_venta(entrada: VentaEntrada, session: Session = Depends(get_session)):
             precio_unitario=producto.precio_venta,
         )
         producto.stock -= item.cantidad
+        total += producto.precio_venta * item.cantidad
         session.add(detalle)
         session.add(producto)
 
-    session.commit()
-    return {"venta_id": venta.id, "mensaje": "Venta registrada"}
+    session.commit() 
+    return {"venta_id": venta.id, "total": total, "mensaje": "Venta registrada"}
 
 
-# ---------- Interfaz web ----------
-# Debe ir al final: StaticFiles "atrapa" todo lo que no coincidió antes con /api/...
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
