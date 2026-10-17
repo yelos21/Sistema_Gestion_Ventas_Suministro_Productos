@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Inventario from "./inventario";
-import Venta from "./venta";
+import Inventario from "./Inventario";
+import Venta from "./Venta";
 import Historial from "./Historial";
 
 type Vista = "inventario" | "venta" | "historial";
