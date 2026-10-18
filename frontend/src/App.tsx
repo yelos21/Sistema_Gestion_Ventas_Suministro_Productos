@@ -1,14 +1,16 @@
 import { useState } from "react";
-import Inventario from "./inventario";
-import Venta from "./venta";
+import Inventario from "./Inventario";
+import Venta from "./Venta";
 import Historial from "./Historial";
+import PracticaBD from "./PracticaBD";
 
-type Vista = "inventario" | "venta" | "historial";
+type Vista = "inventario" | "venta" | "historial" | "practica";
 
 const pestanas: { id: Vista; texto: string }[] = [
   { id: "inventario", texto: "Inventario" },
   { id: "venta", texto: "Nueva venta" },
   { id: "historial", texto: "Historial" },
+  { id: "practica", texto: "Práctica BD" },
 ];
 
 
@@ -35,7 +37,10 @@ export default function App() {
         </div>
       </nav>
 
-      {vista === "inventario" ? <Inventario /> : vista === "venta" ? <Venta /> : <Historial />}
-    </div>
+      {vista === "inventario" && <Inventario />}
+      {vista === "venta" && <Venta />}
+      {vista === "historial" && <Historial />}
+      {vista === "practica" && <PracticaBD />}
+          </div>
   );
 }

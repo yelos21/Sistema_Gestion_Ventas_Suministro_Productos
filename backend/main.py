@@ -8,6 +8,8 @@ from sqlmodel import Session, select
 from fastapi.middleware.cors import CORSMiddleware
 import models
 from database import create_db_and_tables, get_session
+from practica_bd import router as practica_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,6 +27,7 @@ app.add_middleware(
 )
 
 
+app.include_router(practica_router)
 
 
 @app.get("/api/categorias", response_model=list[models.Categoria])
