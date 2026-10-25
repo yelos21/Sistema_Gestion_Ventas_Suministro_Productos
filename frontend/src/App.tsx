@@ -3,14 +3,16 @@ import Inventario from "./Inventario";
 import Venta from "./Venta";
 import Historial from "./Historial";
 import PracticaBD from "./PracticaBD";
+import PracticaAdmin from "./PracticaAdmin";
 
-type Vista = "inventario" | "venta" | "historial" | "practica";
+type Vista = "inventario" | "venta" | "historial" | "practica" | "admin";
 
 const pestanas: { id: Vista; texto: string }[] = [
   { id: "inventario", texto: "Inventario" },
   { id: "venta", texto: "Nueva venta" },
   { id: "historial", texto: "Historial" },
   { id: "practica", texto: "Práctica BD" },
+  { id: "admin", texto: "Práctica Admin" },
 ];
 
 
@@ -41,6 +43,7 @@ export default function App() {
       {vista === "venta" && <Venta />}
       {vista === "historial" && <Historial />}
       {vista === "practica" && <PracticaBD />}
-          </div>
+      {vista === "admin" && <PracticaAdmin />}
+    </div>
   );
 }

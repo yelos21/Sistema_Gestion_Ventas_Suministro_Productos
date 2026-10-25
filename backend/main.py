@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 from database import create_db_and_tables, get_session
 from practica_bd import router as practica_router
+from practica_admin import router as admin_router
 
 
 @asynccontextmanager
@@ -28,7 +29,7 @@ app.add_middleware(
 
 
 app.include_router(practica_router)
-
+app.include_router(admin_router)
 
 @app.get("/api/categorias", response_model=list[models.Categoria])
 def listar_categorias(session: Session = Depends(get_session)):
